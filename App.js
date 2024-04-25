@@ -21,7 +21,7 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [accounts, setAccounts] = useState([]);
   const [selectedItemId, setSelectedItemId] = useState(null);
-  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState({});
 
   const clearValues = () => {
     setUsername("");
@@ -46,7 +46,17 @@ export default function App() {
   };
 
   const handleToggleForm = () => {
-    setShowForm((prev) => !prev);
+    setShowForm((prev) => {
+      if (prev) { // If currently showing the form and about to hide it
+        // Reset password visibility for all accounts
+        const resetVisibility = {};
+        accounts.forEach(account => {
+          resetVisibility[account.id] = false;
+        });
+        setPasswordVisible(resetVisibility);
+      }
+      return !prev;
+    });
     clearValues();
   };
 
@@ -70,13 +80,19 @@ export default function App() {
       tx.executeSql(
         "SELECT * FROM accounts",
         [],
-        (_, { rows: { _array } }) => setAccounts(_array),
+        (_, { rows: { _array } }) => {
+          setAccounts(_array);
+          const visibilityStates = {};
+          _array.forEach((account) => {
+            visibilityStates[account.id] = false;
+          });
+          setPasswordVisible(visibilityStates);
+        },
         (_, err) => console.log("Error fetching accounts", err)
       );
     });
   };
 
-  
   const handleDeleteItem = (itemId) => {
     Alert.alert(
       "Confirm Deletion",
@@ -144,6 +160,13 @@ export default function App() {
     });
   };
 
+  const togglePasswordVisibility = (itemId) => {
+    setPasswordVisible((prev) => ({
+      ...prev,
+      [itemId]: !prev[itemId],
+    }));
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.title}>
@@ -160,19 +183,23 @@ export default function App() {
             renderItem={({ item }) => (
               <View style={styles.accountItem}>
                 <View style={styles.infoLine}>
-                  <Text style={styles.showTitle}>{item.title} </Text>
-                  <Text>Username: {passwordVisible ? item.username : "••••••••"} </Text>
+                  <Text style={styles.showTitle}>{item.title}</Text>
                   <Text>
-                    Password: {passwordVisible ? item.password : "••••••••"}
+                    Username:{" "}
+                    {passwordVisible[item.id] ? item.username : "••••••••"}{" "}
+                  </Text>
+                  <Text>
+                    Password:{" "}
+                    {passwordVisible[item.id] ? item.password : "••••••••"}
                   </Text>
                 </View>
                 <View style={styles.buttonsMenu}>
                   <TouchableOpacity
-                    onPress={() => setPasswordVisible(!passwordVisible)}
+                    onPress={() => togglePasswordVisibility(item.id)}
                   >
                     <Image
                       source={
-                        passwordVisible
+                        passwordVisible[item.id]
                           ? require("./assets/openEye.png")
                           : require("./assets/closedEye.png")
                       }
@@ -181,14 +208,14 @@ export default function App() {
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleEditItem(item.id)}>
                     <Image
-                      source={require("./assets/edit.png")} // Path to your delete.png image
-                      style={styles.deleteButton} // Adjust the size as needed
+                      source={require("./assets/edit.png")}
+                      style={styles.deleteButton}
                     />
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
                     <Image
-                      source={require("./assets/delete.png")} // Path to your delete.png image
-                      style={styles.deleteButton} // Adjust the size as needed
+                      source={require("./assets/delete.png")}
+                      style={styles.deleteButton}
                     />
                   </TouchableOpacity>
                 </View>

@@ -10,9 +10,7 @@ import {
   Image,
   Alert,
 } from "react-native";
-import * as SQLite from "expo-sqlite";
-
-const db = SQLite.openDatabase("db.db");
+import * as SecureStore from "expo-secure-store";
 
 export default function App() {
   const [showForm, setShowForm] = useState(false);
@@ -30,66 +28,36 @@ export default function App() {
   };
 
   useEffect(() => {
-    initDB();
     fetchAccounts();
   }, []);
 
-  const initDB = () => {
-    db.transaction((tx) => {
-      tx.executeSql(
-        "CREATE TABLE IF NOT EXISTS accounts (id INTEGER PRIMARY KEY NOT NULL, title TEXT, username TEXT, password TEXT);",
-        [],
-        () => console.log("Table created successfully"),
-        (_, err) => console.log(err)
-      );
-    });
+  const saveAccount = async (key, value) => {
+    await SecureStore.setItemAsync(key, JSON.stringify(value));
   };
 
-  const handleToggleForm = () => {
-    setShowForm((prev) => {
-      if (prev) { // If currently showing the form and about to hide it
-        // Reset password visibility for all accounts
-        const resetVisibility = {};
-        accounts.forEach(account => {
-          resetVisibility[account.id] = false;
+  const fetchAccounts = async () => {
+    try {
+      let result = await SecureStore.getItemAsync('accounts');
+      if (result) {
+        setAccounts(JSON.parse(result));
+        const visibilityStates = {};
+        JSON.parse(result).forEach((account) => {
+          visibilityStates[account.id] = false;
         });
-        setPasswordVisible(resetVisibility);
+        setPasswordVisible(visibilityStates);
       }
-      return !prev;
-    });
-    clearValues();
+    } catch (error) {
+      console.error("Failed to fetch accounts:", error);
+      Alert.alert("Error", "Failed to load accounts from secure storage.");
+    }
   };
 
   const addAccount = () => {
-    db.transaction((tx) => {
-      tx.executeSql(
-        "INSERT INTO accounts (title, username, password) values (?, ?, ?)",
-        [title, username, password],
-        (_, result) => {
-          console.log("Account added", result);
-          fetchAccounts();
-          handleToggleForm();
-        },
-        (_, err) => console.log("Error adding account", err)
-      );
-    });
-  };
-
-  const fetchAccounts = () => {
-    db.transaction((tx) => {
-      tx.executeSql(
-        "SELECT * FROM accounts",
-        [],
-        (_, { rows: { _array } }) => {
-          setAccounts(_array);
-          const visibilityStates = {};
-          _array.forEach((account) => {
-            visibilityStates[account.id] = false;
-          });
-          setPasswordVisible(visibilityStates);
-        },
-        (_, err) => console.log("Error fetching accounts", err)
-      );
+    const newAccount = { id: Date.now(), title, username, password };
+    const newAccounts = [...accounts, newAccount];
+    saveAccount('accounts', newAccounts).then(() => {
+      setAccounts(newAccounts);
+      handleToggleForm();
     });
   };
 
@@ -100,26 +68,14 @@ export default function App() {
       [
         {
           text: "No",
-          onPress: () => console.log("Deletion canceled"),
           style: "cancel",
         },
         {
           text: "Yes",
           onPress: () => {
-            db.transaction((tx) => {
-              tx.executeSql(
-                "DELETE FROM accounts WHERE id = ?",
-                [itemId],
-                (_, result) => {
-                  if (result.rowsAffected > 0) {
-                    console.log("Item deleted successfully");
-                    fetchAccounts();
-                  } else {
-                    console.log("Item with the specified ID not found");
-                  }
-                },
-                (_, error) => console.error("Error deleting item:", error)
-              );
+            const updatedAccounts = accounts.filter(account => account.id !== itemId);
+            saveAccount('accounts', updatedAccounts).then(() => {
+              setAccounts(updatedAccounts);
             });
           },
         },
@@ -141,31 +97,49 @@ export default function App() {
   };
 
   const handleUpdateItem = () => {
-    db.transaction((tx) => {
-      tx.executeSql(
-        "UPDATE accounts SET title = ?, username = ?, password = ? WHERE id = ?",
-        [title, username, password, selectedItemId],
-        (_, result) => {
-          if (result.rowsAffected > 0) {
-            console.log("Item updated successfully");
-            fetchAccounts();
-            setShowForm(false);
-            setSelectedItemId(null);
-          } else {
-            console.log("Item with the specified ID not found");
-          }
-        },
-        (_, error) => console.error("Error updating item:", error)
-      );
+    const updatedAccount = { id: selectedItemId, title, username, password };
+    const updatedAccounts = accounts.map(account => 
+      account.id === selectedItemId ? updatedAccount : account
+    );
+    saveAccount('accounts', updatedAccounts).then(() => {
+      setAccounts(updatedAccounts);
+      // Reset visibility for all accounts
+      const resetVisibility = {};
+      updatedAccounts.forEach(account => {
+        resetVisibility[account.id] = false;
+      });
+      setPasswordVisible(resetVisibility);
+      setShowForm(false);
+      setSelectedItemId(null);
+      clearValues();
     });
   };
 
+  
   const togglePasswordVisibility = (itemId) => {
     setPasswordVisible((prev) => ({
       ...prev,
       [itemId]: !prev[itemId],
     }));
   };
+
+  const handleToggleForm = () => {
+    setShowForm((prev) => {
+      if (prev) { // If currently showing the form and about to hide it
+        // Reset password visibility for all accounts
+        const resetVisibility = {};
+        accounts.forEach(account => {
+          resetVisibility[account.id] = false;
+        });
+        setPasswordVisible(resetVisibility);
+        // Also reset selected item ID when closing the form
+        setSelectedItemId(null);
+        clearValues();
+      }
+      return !prev;
+    });
+  };
+  
 
   return (
     <View style={styles.container}>

@@ -11,6 +11,11 @@ import {
   Alert,
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
+import * as LocalAuthentication from "expo-local-authentication";
+import OpenSettings from 'react-native-open-settings';
+import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
+import * as IntentLauncher from 'expo-intent-launcher';
 
 export default function App() {
   const [showForm, setShowForm] = useState(false);
@@ -18,8 +23,9 @@ export default function App() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [accounts, setAccounts] = useState([]);
-  const [selectedItemId, setSelectedItemId] = useState(null);
+  const [selectedItemId, setSelectedItemId] = useState(null); 
   const [passwordVisible, setPasswordVisible] = useState({});
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const clearValues = () => {
     setUsername("");
@@ -28,8 +34,67 @@ export default function App() {
   };
 
   useEffect(() => {
+    authenticate();
     fetchAccounts();
   }, []);
+
+  const openSettings = () => {
+    if (Platform.OS === 'ios') {
+      Linking.openURL('app-settings:');
+      Alert.alert(
+        "Navigate to Face ID & Passcode",
+        "Please go to Settings > Face ID & Passcode to enable or configure your biometrics.",
+        [{ text: "OK" }]
+      );
+    } else if (Platform.OS === 'android') {
+      IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.APPLICATION_DETAILS_SETTINGS);
+      Alert.alert(
+        "Navigate to Security Settings",
+        "Please go to Settings > Security to enable or configure your biometrics.",
+        [{ text: "OK" }]
+      );
+    }
+  };
+
+  const authenticate = async () => {
+    console.log("Checking hardware...");
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    console.log("Hardware available:", hasHardware);
+  
+    // This function checks what types of biometrics are available
+    const availableBiometrics = await LocalAuthentication.supportedAuthenticationTypesAsync();
+    const isBiometricSupported = availableBiometrics.length > 0;
+  
+    console.log("Supported biometrics:", availableBiometrics);
+  
+    if (!hasHardware || !isBiometricSupported) {
+      console.log("No biometric hardware available or no biometrics setup.");
+      Alert.alert("Unavailable", "Your device does not support or is not configured for biometric authentication.");
+      return;
+    }
+  
+    console.log("Attempting to authenticate with biometrics...");
+    const authResult = await LocalAuthentication.authenticateAsync({
+      promptMessage: "Authenticate to access your Password Keeper",
+      fallbackLabel: "Use Passcode", // This will show only if biometric fails and fallback is necessary
+      disableDeviceFallback: false, // This must be false to allow fallback to passcode
+    });
+  
+    console.log("Authentication result:", authResult);
+  
+    if (!authResult.success) {
+      console.log("Authentication failed:", authResult.error);
+      Alert.alert(
+        "Authentication Failed",
+        "You could not be verified. Please try again or use your passcode.",
+        [{ text: "Try Again", onPress: () => authenticate() }]
+      );
+    } else {
+      console.log("Authentication successful!");
+      setIsAuthenticated(true);
+    }
+  };
+  
 
   const saveAccount = async (key, value) => {
     await SecureStore.setItemAsync(key, JSON.stringify(value));
@@ -37,7 +102,7 @@ export default function App() {
 
   const fetchAccounts = async () => {
     try {
-      let result = await SecureStore.getItemAsync('accounts');
+      let result = await SecureStore.getItemAsync("accounts");
       if (result) {
         setAccounts(JSON.parse(result));
         const visibilityStates = {};
@@ -55,7 +120,7 @@ export default function App() {
   const addAccount = () => {
     const newAccount = { id: Date.now(), title, username, password };
     const newAccounts = [...accounts, newAccount];
-    saveAccount('accounts', newAccounts).then(() => {
+    saveAccount("accounts", newAccounts).then(() => {
       setAccounts(newAccounts);
       handleToggleForm();
     });
@@ -73,8 +138,10 @@ export default function App() {
         {
           text: "Yes",
           onPress: () => {
-            const updatedAccounts = accounts.filter(account => account.id !== itemId);
-            saveAccount('accounts', updatedAccounts).then(() => {
+            const updatedAccounts = accounts.filter(
+              (account) => account.id !== itemId
+            );
+            saveAccount("accounts", updatedAccounts).then(() => {
               setAccounts(updatedAccounts);
             });
           },
@@ -98,14 +165,14 @@ export default function App() {
 
   const handleUpdateItem = () => {
     const updatedAccount = { id: selectedItemId, title, username, password };
-    const updatedAccounts = accounts.map(account => 
+    const updatedAccounts = accounts.map((account) =>
       account.id === selectedItemId ? updatedAccount : account
     );
-    saveAccount('accounts', updatedAccounts).then(() => {
+    saveAccount("accounts", updatedAccounts).then(() => {
       setAccounts(updatedAccounts);
       // Reset visibility for all accounts
       const resetVisibility = {};
-      updatedAccounts.forEach(account => {
+      updatedAccounts.forEach((account) => {
         resetVisibility[account.id] = false;
       });
       setPasswordVisible(resetVisibility);
@@ -115,7 +182,6 @@ export default function App() {
     });
   };
 
-  
   const togglePasswordVisibility = (itemId) => {
     setPasswordVisible((prev) => ({
       ...prev,
@@ -125,10 +191,11 @@ export default function App() {
 
   const handleToggleForm = () => {
     setShowForm((prev) => {
-      if (prev) { // If currently showing the form and about to hide it
+      if (prev) {
+        // If currently showing the form and about to hide it
         // Reset password visibility for all accounts
         const resetVisibility = {};
-        accounts.forEach(account => {
+        accounts.forEach((account) => {
           resetVisibility[account.id] = false;
         });
         setPasswordVisible(resetVisibility);
@@ -139,7 +206,6 @@ export default function App() {
       return !prev;
     });
   };
-  
 
   return (
     <View style={styles.container}>
@@ -149,7 +215,7 @@ export default function App() {
         <StatusBar style="auto" />
       </View>
 
-      {!showForm ? (
+      {isAuthenticated && !showForm ? (
         <View>
           <FlatList
             data={accounts}

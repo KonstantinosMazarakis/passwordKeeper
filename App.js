@@ -12,10 +12,15 @@ import {
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as LocalAuthentication from "expo-local-authentication";
-import OpenSettings from 'react-native-open-settings';
-import * as Linking from 'expo-linking';
-import { Platform } from 'react-native';
-import * as IntentLauncher from 'expo-intent-launcher';
+import OpenSettings from "react-native-open-settings";
+import * as Linking from "expo-linking";
+import { Platform } from "react-native";
+import * as IntentLauncher from "expo-intent-launcher";
+import { Icon } from "react-native-elements";
+import { Dimensions } from "react-native";
+import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
+import { Input } from "react-native-elements";
+import { color } from "react-native-elements/dist/helpers";
 
 export default function App() {
   const [showForm, setShowForm] = useState(false);
@@ -23,7 +28,7 @@ export default function App() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [accounts, setAccounts] = useState([]);
-  const [selectedItemId, setSelectedItemId] = useState(null); 
+  const [selectedItemId, setSelectedItemId] = useState(null);
   const [passwordVisible, setPasswordVisible] = useState({});
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -34,20 +39,21 @@ export default function App() {
   };
 
   useEffect(() => {
-    authenticate();
     fetchAccounts();
   }, []);
 
   const openSettings = () => {
-    if (Platform.OS === 'ios') {
-      Linking.openURL('app-settings:');
+    if (Platform.OS === "ios") {
+      Linking.openURL("app-settings:");
       Alert.alert(
         "Navigate to Face ID & Passcode",
         "Please go to Settings > Face ID & Passcode to enable or configure your biometrics.",
         [{ text: "OK" }]
       );
-    } else if (Platform.OS === 'android') {
-      IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.APPLICATION_DETAILS_SETTINGS);
+    } else if (Platform.OS === "android") {
+      IntentLauncher.startActivityAsync(
+        IntentLauncher.ActivityAction.APPLICATION_DETAILS_SETTINGS
+      );
       Alert.alert(
         "Navigate to Security Settings",
         "Please go to Settings > Security to enable or configure your biometrics.",
@@ -56,45 +62,62 @@ export default function App() {
     }
   };
 
-  const authenticate = async () => {
-    console.log("Checking hardware...");
-    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    console.log("Hardware available:", hasHardware);
-  
-    // This function checks what types of biometrics are available
-    const availableBiometrics = await LocalAuthentication.supportedAuthenticationTypesAsync();
-    const isBiometricSupported = availableBiometrics.length > 0;
-  
-    console.log("Supported biometrics:", availableBiometrics);
-  
-    if (!hasHardware || !isBiometricSupported) {
-      console.log("No biometric hardware available or no biometrics setup.");
-      Alert.alert("Unavailable", "Your device does not support or is not configured for biometric authentication.");
-      return;
-    }
-  
-    console.log("Attempting to authenticate with biometrics...");
-    const authResult = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Authenticate to access your Password Keeper",
-      fallbackLabel: "Use Passcode", // This will show only if biometric fails and fallback is necessary
-      disableDeviceFallback: false, // This must be false to allow fallback to passcode
-    });
-  
-    console.log("Authentication result:", authResult);
-  
-    if (!authResult.success) {
-      console.log("Authentication failed:", authResult.error);
+  async function authenticate() {
+    try {
+      // Check for hardware and biometric records
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const supportedBiometrics =
+        await LocalAuthentication.supportedAuthenticationTypesAsync();
+      const isBiometricSupported = supportedBiometrics.length > 0;
+
+      if (!hasHardware || !isBiometricSupported) {
+        Alert.alert(
+          "Unavailable",
+          "Your device does not support or is not configured for biometric authentication."
+        );
+        return;
+      }
+
+      // Perform the authentication
+      const authResult = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Authenticate to access your Password Keeper",
+        fallbackLabel: "Use Passcode",
+        disableDeviceFallback: false,
+      });
+
+      // Handle the outcome of the biometric authentication
+      if (authResult.success) {
+        console.log("Authentication successful!");
+        // Set the authentication state or proceed further
+        setIsAuthenticated(true);
+      } else {
+        if (
+          authResult.error === "user_cancel" ||
+          authResult.error === "system_cancel"
+        ) {
+          Alert.alert(
+            "Authentication Cancelled",
+            "Authentication was cancelled by the user or the system."
+          );
+        } else {
+          Alert.alert(
+            "Authentication Failed",
+            "You could not be verified. Please try again or use your passcode.",
+            [
+              { text: "Try Again", onPress: () => authenticate() },
+              { text: "Cancel", style: "cancel" },
+            ]
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Authentication error:", error);
       Alert.alert(
-        "Authentication Failed",
-        "You could not be verified. Please try again or use your passcode.",
-        [{ text: "Try Again", onPress: () => authenticate() }]
+        "Authentication Error",
+        "An unexpected error occurred during authentication."
       );
-    } else {
-      console.log("Authentication successful!");
-      setIsAuthenticated(true);
     }
-  };
-  
+  }
 
   const saveAccount = async (key, value) => {
     await SecureStore.setItemAsync(key, JSON.stringify(value));
@@ -207,6 +230,38 @@ export default function App() {
     });
   };
 
+  if (!isAuthenticated) {
+    return (
+      <View style={styles.initialScreen}>
+        <View style={styles.title2}>
+        <Text style={styles.simple}>Simple</Text>
+        <Text style={styles.passwordKeeper}> Password Keeper</Text>
+        <StatusBar style="auto" />
+      </View>
+        <Text style={styles.loadingText}>Please authenticate to continue</Text>
+        <TouchableOpacity style={styles.loginButton} onPress={authenticate}>
+          <Icon name="lock" type="antdesign" size={45} color="white" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.loginButton} onPress={authenticate}>
+          <Icon name="privacy-tip" type="MaterialIcons"  color="white" />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const renderFooter = () => {
+    return (
+      <View style={{ paddingVertical: 20, paddingBottom: 30 }}>
+        <TouchableOpacity style={styles.button} onPress={handleToggleForm}>
+          <View style={styles.plus}>
+            <View style={styles.horizontalBar} />
+            <View style={styles.verticalBar} />
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.title}>
@@ -216,84 +271,81 @@ export default function App() {
       </View>
 
       {isAuthenticated && !showForm ? (
-        <View>
-          <FlatList
-            data={accounts}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <View style={styles.accountItem}>
-                <View style={styles.infoLine}>
-                  <Text style={styles.showTitle}>{item.title}</Text>
-                  <Text>
-                    Username:{" "}
-                    {passwordVisible[item.id] ? item.username : "••••••••"}{" "}
-                  </Text>
-                  <Text>
-                    Password:{" "}
-                    {passwordVisible[item.id] ? item.password : "••••••••"}
-                  </Text>
-                </View>
-                <View style={styles.buttonsMenu}>
-                  <TouchableOpacity
-                    onPress={() => togglePasswordVisibility(item.id)}
-                  >
-                    <Image
-                      source={
-                        passwordVisible[item.id]
-                          ? require("./assets/openEye.png")
-                          : require("./assets/closedEye.png")
-                      }
-                      style={styles.deleteButton}
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleEditItem(item.id)}>
-                    <Image
-                      source={require("./assets/edit.png")}
-                      style={styles.deleteButton}
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
-                    <Image
-                      source={require("./assets/delete.png")}
-                      style={styles.deleteButton}
-                    />
-                  </TouchableOpacity>
-                </View>
+        <FlatList
+          data={accounts}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <View style={styles.accountItem}>
+              <View style={styles.infoLine}>
+                <Text style={styles.showTitle}>{item.title}</Text>
+                <Text>
+                  Username:{" "}
+                  {passwordVisible[item.id] ? item.username : "••••••••"}{" "}
+                </Text>
+                <Text>
+                  Password:{" "}
+                  {passwordVisible[item.id] ? item.password : "••••••••"}
+                </Text>
               </View>
-            )}
-          />
-
-          <TouchableOpacity style={styles.button} onPress={handleToggleForm}>
-            <View style={styles.plus}>
-              <View style={styles.horizontalBar} />
-              <View style={styles.verticalBar} />
+              <View style={styles.buttonsMenu}>
+                <TouchableOpacity
+                  onPress={() => togglePasswordVisibility(item.id)}
+                  style={styles.iconButton}
+                >
+                  <FontAwesome5
+                    name={passwordVisible[item.id] ? "eye" : "eye-slash"}
+                    size={30}
+                    color="orange"
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleEditItem(item.id)}
+                  style={styles.iconButton}
+                >
+                  <FontAwesome5 name="pen" size={30} color="orange" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleDeleteItem(item.id)}
+                  style={styles.iconButton}
+                >
+                  <FontAwesome5 name="trash-alt" size={30} color="orange" />
+                </TouchableOpacity>
+              </View>
             </View>
-          </TouchableOpacity>
-        </View>
+          )}
+          ListFooterComponent={renderFooter}
+          contentContainerStyle={{ paddingBottom: 50 }} // Additional padding at the bottom
+        />
       ) : (
         <View style={styles.form}>
-          <Text style={styles.label}>Title:</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Title"
+          <Input
+            placeholder="Title"
             value={title}
             onChangeText={setTitle}
+            leftIcon={{ type: "font-awesome", name: "tag", marginLeft: 5 }}
+            inputContainerStyle={{ borderColor: "black" }}
+            placeholderTextColor="black"
           />
-          <Text style={styles.label}>Username:</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter username"
+
+          <Input
+            placeholder="Username"
             value={username}
             onChangeText={setUsername}
+            leftIcon={{ type: "font-awesome", name: "user", marginLeft: 5 }}
+            inputContainerStyle={{ borderColor: "black" }}
+            placeholderTextColor="black"
           />
-          <Text style={styles.label}>Password:</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter password"
-            secureTextEntry={true}
+
+          <Input
+            placeholder="Password"
             value={password}
             onChangeText={setPassword}
+            secureTextEntry={true}
+            leftIcon={{ type: "font-awesome", name: "lock", marginLeft: 5 }}
+            inputContainerStyle={{ borderColor: "black" }}
+            placeholderTextColor="black"
           />
+
           <View style={styles.buttonContainer}>
             {selectedItemId === null ? (
               <TouchableOpacity style={styles.formButton} onPress={addAccount}>
@@ -319,11 +371,13 @@ export default function App() {
     </View>
   );
 }
+const { width } = Dimensions.get("window");
+const scale = width / 360;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "gray",
+    backgroundColor: "grey",
   },
   title: {
     display: "flex",
@@ -334,17 +388,25 @@ const styles = StyleSheet.create({
     paddingBottom: 7,
     borderBottomWidth: 3,
   },
+  title2: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "baseline",
+    flexDirection: "row",
+    marginTop: 65,
+    paddingBottom: 7,
+  },
   simple: {
     color: "orange",
     fontWeight: "bold",
-    fontSize: 35,
+    fontSize: 35 * scale,
     textShadowColor: "#000",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 4,
   },
   passwordKeeper: {
     fontWeight: "bold",
-    fontSize: 20,
+    fontSize: 20 * scale,
     textShadowColor: "#000",
     textShadowOffset: { width: 0.2, height: 0.2 },
     textShadowRadius: 0.5,
@@ -428,16 +490,39 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   infoLine: {
-    flex: 2,
+    flex: 8,
   },
   buttonsMenu: {
     display: "flex",
     flexDirection: "row",
     justifyContent: "space-between",
-    flex: 1,
+    flex: 4,
   },
-  deleteButton: {
-    width: 25,
-    height: 25,
+  initialScreen: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "gray",
+  },
+  loginButton: {
+    flexDirection: "row",
+    backgroundColor: "orange",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20,
+  },
+  loadingText: {
+    fontWeight: "bold",
+    fontSize: 20,
+    color: "white",
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

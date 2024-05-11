@@ -1,0 +1,22 @@
+Privacy Notice
+
+Introduction
+Welcome to our application! This privacy notice explains how your data is managed and protected in our app. By using our app, you accept full responsibility for the security and management of your data.
+
+Data Storage and Encryption
+All personal data entered into this application is stored locally on your device and not on any external servers. We use AES-256 encryption, one of the strongest block ciphers available, to ensure that your data is protected against unauthorized access. This encryption method secures your data at rest, making it accessible only through the application itself.
+
+User Responsibility
+As a user, you are solely responsible for maintaining the confidentiality of your data within the app. It is crucial to understand that if the app is deleted, or if you clear the app's data, all stored information will be permanently lost without the possibility of recovery. We recommend keeping regular backups of your data if needed.
+
+Access Control
+Access to the app is safeguarded by biometric authentication (such as fingerprint or facial recognition) or by using the device's passcode. This ensures that only you can access your data by leveraging the security features of your device.
+
+Your Rights and Responsibilities
+It is your responsibility to secure and manage your device's biometric authentication or passcode. We do not have access to or the capability to retrieve your personal encryption keys or passcodes used to secure your data. You acknowledge and agree that the security and integrity of your data is your responsibility, and you use the app at your own risk.
+
+Legal Compliance and Changes to Privacy Notice
+We may update this privacy notice to reflect changes in our practices or for other operational, legal, or regulatory reasons. If significant changes are made, we will notify you through the app interface or through other means such as email, allowing you to review the changes before they become effective.
+
+Contact Information
+For any questions or concerns regarding this privacy notice or the handling of your data, please contact us through the app's support feature. We are committed to protecting your privacy and ensuring that you have a secure and enjoyable user experience.

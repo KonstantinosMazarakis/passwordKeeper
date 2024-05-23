@@ -4,7 +4,7 @@
     "slug": "SimplePasswordKeeper",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
@@ -23,7 +23,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
@@ -33,7 +33,7 @@
       "package": "com.yourcompany.SimplePasswordKeeper"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/logo.png"
     },
     "plugins": [
       "expo-secure-store",
@@ -46,7 +46,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "9019af73-0ce5-4241-ba74-2776eb9c66a5"
+        "projectId": "9d78fae4-72a5-4cea-8957-6edd7458c75c"
       }
     }
   }

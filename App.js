@@ -23,9 +23,8 @@ import { Dimensions } from "react-native";
 import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import { Input } from "react-native-elements";
 import { color } from "react-native-elements/dist/helpers";
-import { readAsStringAsync } from 'expo-file-system';
-import * as FileSystem from 'expo-file-system';
-import { Asset } from 'expo-asset';
+import PrivacyPolicyText from './PrivacyPolicy';
+
 
 export default function App() {
   const [showForm, setShowForm] = useState(false);
@@ -37,7 +36,6 @@ export default function App() {
   const [passwordVisible, setPasswordVisible] = useState({});
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [privacyText, setPrivacyText] = useState('');
 
 
   const clearValues = () => {
@@ -50,19 +48,10 @@ export default function App() {
     fetchAccounts();
   }, []);
 
-
-  const loadPrivacyPolicy = async () => {
-    try {
-      const asset = Asset.fromModule(require('./assets/privacy_policy.txt'));
-      await asset.downloadAsync();  // Ensures asset is downloaded
-      const content = await FileSystem.readAsStringAsync(asset.uri);  // Using 'uri' instead of 'localUri'
-      setPrivacyText(content);
-    } catch (error) {
-      console.error('Failed to load the privacy policy:', error);
-      Alert.alert('Error', 'Failed to load privacy policy.');
-    }
+  const togglePrivacyModal = () => {
+    setModalVisible(!modalVisible);
   };
-  
+
   const openSettings = () => {
     if (Platform.OS === "ios") {
       Linking.openURL("app-settings:");
@@ -251,33 +240,6 @@ export default function App() {
     });
   };
 
-  const PrivacyModal = ({ isVisible, onClose }) => {
-    return (
-      <Modal
-        visible={isVisible}
-        animationType="slide"
-        onRequestClose={onClose}
-        transparent={true}
-      >
-        <View style={styles.centeredView}>
-          <View style={styles.modalView}>
-            <ScrollView style={{ maxHeight: '90%' }}>
-              <Text style={styles.modalText}>
-                Privacy Policy Details... (Add your privacy policy details here)
-              </Text>
-            </ScrollView>
-            <TouchableOpacity
-              style={[styles.button, styles.buttonClose]}
-              onPress={onClose}
-            >
-              <Text style={styles.textStyle}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
   if (!isAuthenticated) {
     return (
       <View style={styles.initialScreen}>
@@ -290,31 +252,29 @@ export default function App() {
         <TouchableOpacity style={styles.loginButton} onPress={authenticate}>
           <Icon name="lock" type="antdesign" size={45} color="white" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.loginButton} onPress={loadPrivacyPolicy}>
+        <TouchableOpacity style={styles.loginButton} onPress={togglePrivacyModal}>
           <Icon name="privacy-tip" type="MaterialIcons"  color="white" />
         </TouchableOpacity>
         <Modal
-      animationType="slide"
-      transparent={true}
-      visible={modalVisible}
-      onRequestClose={() => {
-        setModalVisible(!modalVisible);
-      }}
-    >
-      <View style={styles.centeredView}>
-        <View style={styles.modalView}>
-          <ScrollView style={{ maxHeight: '90%' }}>
-            <Text style={styles.modalText}>{privacyText}</Text>
-          </ScrollView>
-          <TouchableOpacity
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={togglePrivacyModal}
+        >
+ <View style={styles.centeredView}>
+            <View style={styles.modalView}>
+              <ScrollView style={{ maxHeight: '90%' }}>
+                <PrivacyPolicyText />
+              </ScrollView>
+              <TouchableOpacity
                 style={[styles.button, styles.buttonClose]}
-                onPress={() => setModalVisible(false)}
+                onPress={togglePrivacyModal}
               >
-            <Text style={styles.textStyle}>Close</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
+                <Text style={styles.textStyle}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </View>
     );
   }

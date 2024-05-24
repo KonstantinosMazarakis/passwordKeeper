@@ -20,11 +20,23 @@ import { Platform } from "react-native";
 import * as IntentLauncher from "expo-intent-launcher";
 import { Icon } from "react-native-elements";
 import { Dimensions } from "react-native";
-import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
+import { FontAwesome5 } from "@expo/vector-icons";
 import { Input } from "react-native-elements";
 import { color } from "react-native-elements/dist/helpers";
-import PrivacyPolicyText from './PrivacyPolicy';
+import PrivacyPolicyText from "./PrivacyPolicy";
+import { LinearGradient } from "expo-linear-gradient";
+import * as SplashScreen from "expo-splash-screen";
+import * as Font from "expo-font";
 
+SplashScreen.preventAutoHideAsync();
+
+const loadFonts = async () => {
+  await Font.loadAsync({
+    "FontAwesome5Free-Solid": require("@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/FontAwesome5_Solid.ttf"),
+    "FontAwesome5Free-Regular": require("@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/FontAwesome5_Regular.ttf"),
+    "FontAwesome5Brands-Regular": require("@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/FontAwesome5_Brands.ttf"),
+  });
+};
 
 export default function App() {
   const [showForm, setShowForm] = useState(false);
@@ -36,7 +48,7 @@ export default function App() {
   const [passwordVisible, setPasswordVisible] = useState({});
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-
+  const [fontsLoaded, setFontsLoaded] = useState(false);
 
   const clearValues = () => {
     setUsername("");
@@ -44,9 +56,43 @@ export default function App() {
     setTitle("");
   };
 
+
+  const fetchAccounts = async () => {
+    try {
+      let result = await SecureStore.getItemAsync("accounts");
+      if (result) {
+        setAccounts(JSON.parse(result));
+        const visibilityStates = {};
+        JSON.parse(result).forEach((account) => {
+          visibilityStates[account.id] = false;
+        });
+        setPasswordVisible(visibilityStates);
+      }
+    } catch (error) {
+      console.error("Failed to fetch accounts:", error);
+      Alert.alert("Error", "Failed to load accounts from secure storage.");
+    }
+  };
+
   useEffect(() => {
+    async function load() {
+      try {
+        await SplashScreen.preventAutoHideAsync();
+        await loadFonts();
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        setFontsLoaded(true);
+        await SplashScreen.hideAsync();
+      }
+    }
+    load();
     fetchAccounts();
   }, []);
+
+  if (!fontsLoaded) {
+    return null; // Render nothing while waiting for fonts to load
+  }
 
   const togglePrivacyModal = () => {
     setModalVisible(!modalVisible);
@@ -131,23 +177,6 @@ export default function App() {
 
   const saveAccount = async (key, value) => {
     await SecureStore.setItemAsync(key, JSON.stringify(value));
-  };
-
-  const fetchAccounts = async () => {
-    try {
-      let result = await SecureStore.getItemAsync("accounts");
-      if (result) {
-        setAccounts(JSON.parse(result));
-        const visibilityStates = {};
-        JSON.parse(result).forEach((account) => {
-          visibilityStates[account.id] = false;
-        });
-        setPasswordVisible(visibilityStates);
-      }
-    } catch (error) {
-      console.error("Failed to fetch accounts:", error);
-      Alert.alert("Error", "Failed to load accounts from secure storage.");
-    }
   };
 
   const addAccount = () => {
@@ -242,18 +271,24 @@ export default function App() {
 
   if (!isAuthenticated) {
     return (
-      <View style={styles.initialScreen}>
+      <LinearGradient
+        colors={["#D0D0D0", "#808080"]} // Gradient from light to dark
+        style={styles.initialScreen}
+      >
         <View style={styles.title2}>
-        <Text style={styles.simple}>Simple</Text>
-        <Text style={styles.passwordKeeper}> Password Keeper</Text>
-        <StatusBar style="auto" />
-      </View>
+          <Text style={styles.simple}>Simple</Text>
+          <Text style={styles.passwordKeeper}> Password Keeper</Text>
+          <StatusBar style="auto" />
+        </View>
         <Text style={styles.loadingText}>Please authenticate to continue</Text>
         <TouchableOpacity style={styles.loginButton} onPress={authenticate}>
           <Icon name="lock" type="antdesign" size={45} color="white" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.loginButton} onPress={togglePrivacyModal}>
-          <Icon name="privacy-tip" type="MaterialIcons"  color="white" />
+        <TouchableOpacity
+          style={styles.loginButton}
+          onPress={togglePrivacyModal}
+        >
+          <Icon name="privacy-tip" type="MaterialIcons" color="white" />
         </TouchableOpacity>
         <Modal
           animationType="slide"
@@ -261,9 +296,9 @@ export default function App() {
           visible={modalVisible}
           onRequestClose={togglePrivacyModal}
         >
- <View style={styles.centeredView}>
+          <View style={styles.centeredView}>
             <View style={styles.modalView}>
-              <ScrollView style={{ maxHeight: '90%' }}>
+              <ScrollView style={{ maxHeight: "90%" }}>
                 <PrivacyPolicyText />
               </ScrollView>
               <TouchableOpacity
@@ -275,7 +310,7 @@ export default function App() {
             </View>
           </View>
         </Modal>
-      </View>
+      </LinearGradient>
     );
   }
 
@@ -293,7 +328,10 @@ export default function App() {
   };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={["#D0D0D0", "#808080"]} // Specify your gradient colors
+      style={styles.container}
+    >
       <View style={styles.title}>
         <Text style={styles.simple}>Simple</Text>
         <Text style={styles.passwordKeeper}> Password Keeper</Text>
@@ -310,7 +348,7 @@ export default function App() {
                 <Text style={styles.showTitle}>{item.title}</Text>
                 <Text>
                   Username:{" "}
-                  {passwordVisible[item.id] ? item.username : "••••••••"}{" "}
+                  {passwordVisible[item.id] ? item.username : "••••••••"}
                 </Text>
                 <Text>
                   Password:{" "}
@@ -326,19 +364,20 @@ export default function App() {
                     name={passwordVisible[item.id] ? "eye" : "eye-slash"}
                     size={30}
                     color="orange"
+                    style={styles.shadowIcon}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => handleEditItem(item.id)}
                   style={styles.iconButton}
                 >
-                  <FontAwesome5 name="pen" size={30} color="orange" />
+                  <FontAwesome5 name="pen" size={30} color="orange"  style={styles.shadowIcon}/>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => handleDeleteItem(item.id)}
                   style={styles.iconButton}
                 >
-                  <FontAwesome5 name="trash-alt" size={30} color="orange" />
+                  <FontAwesome5 name="trash-alt" size={30} color="orange"  style={styles.shadowIcon} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -356,7 +395,6 @@ export default function App() {
             inputContainerStyle={{ borderColor: "black" }}
             placeholderTextColor="black"
           />
-
           <Input
             placeholder="Username"
             value={username}
@@ -365,7 +403,6 @@ export default function App() {
             inputContainerStyle={{ borderColor: "black" }}
             placeholderTextColor="black"
           />
-
           <Input
             placeholder="Password"
             value={password}
@@ -375,7 +412,6 @@ export default function App() {
             inputContainerStyle={{ borderColor: "black" }}
             placeholderTextColor="black"
           />
-
           <View style={styles.buttonContainer}>
             {selectedItemId === null ? (
               <TouchableOpacity style={styles.formButton} onPress={addAccount}>
@@ -398,7 +434,7 @@ export default function App() {
           </View>
         </View>
       )}
-    </View>
+    </LinearGradient>
   );
 }
 const { width } = Dimensions.get("window");
@@ -407,7 +443,6 @@ const scale = width / 360;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "grey",
   },
   title: {
     display: "flex",
@@ -482,6 +517,11 @@ const styles = StyleSheet.create({
     backgroundColor: "orange",
     padding: 10,
     borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
   },
   buttonText: {
     color: "white",
@@ -532,7 +572,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "gray",
   },
   loginButton: {
     flexDirection: "row",
@@ -555,44 +594,43 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
-
-
-
-
-
-
   centeredView: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 22
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 22,
   },
   modalView: {
     margin: 20,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 20,
     padding: 35,
-    alignItems: 'center',
-    shadowColor: '#000',
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 2
+      height: 2,
     },
     shadowOpacity: 0.25,
     shadowRadius: 4,
-    elevation: 5
+    elevation: 5,
   },
   modalText: {
     marginBottom: 15,
-    textAlign: 'center'
+    textAlign: "center",
   },
   buttonClose: {
-    backgroundColor: '#2196F3',
+    backgroundColor: "#2196F3",
   },
   textStyle: {
-    color: 'white',
-    fontWeight: 'bold',
-    textAlign: 'center'
+    color: "white",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  shadowIcon: {
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 3,
+    padding: 2
   },
 });
